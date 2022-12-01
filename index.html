@@ -48,26 +48,32 @@
         })
     });
     function CAL() {
-        console.log(BZ)
-        console.log(SJ)
+        console.log("标准值", BZ)
+        console.log("监测值", SJ)
         var SJName = SJ.lieName;
         var SJType = SJ.lieType;
-        var objArr = SJ.objArr;
+        var iptArr = SJ.objArr;
         var BZName = BZ.lieName;
 
-        var objArr2 = JSON.parse(JSON.stringify(objArr));
+        var Result = JSON.parse(JSON.stringify(iptArr));
         var itmsright = [];
         var itmswrong = [];
         for (var i = 0; i < SJName.length; i++) {
-            if (SJType[i] == '数据') {
+            if (SJType[i] == 'data') {
                 var itm = SJName[i];
                 if (BZName.includes(itm)) {
+                    console.log(itm);
                     itmsright.push(itm);
-                    var BZgrade = BZ.objArr.map(item => { return item['等级'] })
-                    var BZvalue = BZ.objArr.map(item => { return item[itm] })
-                    objArr2.forEach(element => {
+                    var BZgrade = BZ.objArr.map(item => { return item['等级'] });
+                    var BZvalue = BZ.objArr.map(item => { return item[itm] });
+                    // console.log("BZvalue", BZvalue);
+                    // console.log("BZgrade", BZgrade);
+
+                    Result.forEach(element => {
                         var newgrade = Lineinterp(BZvalue, BZgrade, element[itm]);
-                        element[itm] = newgrade >= 6 ? 6 : Math.round(newgrade * 100) / 100;
+                        // element[itm] = newgrade > 6 ? 6 : Math.round(newgrade * 100) / 100;//指数约束，不大于6
+                        element[itm] = newgrade > 10 ? 10 : Math.round(newgrade * 100) / 100;//指数约束，不大于6
+                        console.log(element[itm]);
                     });
                 } else {
                     itmswrong.push(itm);
@@ -76,15 +82,15 @@
         }
         console.log('找到了标准的项目', itmsright);
         console.log('未找到标准的项目', itmswrong);
-        console.log(objArr)
-        console.log(objArr2)
+        console.log("输入", iptArr);
+        console.log("输出", Result);
 
         // drawChart()
         var chartdata = [["Element", "Index", { role: "style" }]];
-        for (var key in objArr2[0]) {
+        for (var key in Result[0]) {
             if (itmsright.includes(key)) {
-                var V_index = objArr2[0][key];
-                // var V_true = objArr[0][key];
+                var V_index = Result[0][key];
+                // var V_true = iptArr[0][key];
                 chartdata.push([key, V_index, getcolor(V_index)
                 ])
             }
@@ -110,14 +116,14 @@
 
     function getcolor(x) {
         return x < 1 ? '#00BB00' :
-            x <= 2 ? '#00BB00' :
+            x <= 2 ? '#1E90FF' :
                 x <= 3 ? '#FFD700' :
-                    x <= 4 ? '#FFD700' :
+                    x <= 4 ? '#FF8C00' :
                         x <= 5 ? '#EA0000' :
                             '#921AFF'
 
     }
-    //'#0080FF'#FF7F50
+
     function readFileAsText(file, onLoadCallback) {
         var reader = new FileReader();
         reader.onload = onLoadCallback;
@@ -132,13 +138,30 @@
         if (n < 3) {
             return ('too short')
         }
-        if (X <= Xs[0]) {
-            return Ys[0] - ((Ys[1] - Ys[0]) / (Xs[1] - Xs[0])) * (Xs[0] - X)
-        } else if (X > Xs[n - 1]) {
-            return Ys[n - 1] + ((Ys[n - 1] - Ys[n - 2]) / (Xs[n - 1] - Xs[n - 2])) * (X - Xs[n - 1])
-        } else {
+        //污染级增模型
+        if (Xs[n - 1] > Xs[0]) {
+            if (X >= Xs[0] && X <= Xs[n - 1]) {
+                // console.log("区间内");
+                for (var i = 0; i < n - 1; i++) {
+                    if (X >= Xs[i] && X <= Xs[i + 1]) {
+                        return Ys[i] + (Ys[i + 1] - Ys[i]) / (Xs[i + 1] - Xs[i]) * (X - Xs[i])
+                    }
+                }
+            }
+            else if (X > Xs[n - 1]) {
+                // console.log("超出");
+                // return Ys[n - 1] + ((Ys[n - 1] - Ys[n - 2]) / (Xs[n - 1] - Xs[n - 2])) * (X - Xs[n - 1])
+                return Ys[n - 1] + ((X - Xs[n - 1]) / Xs[n - 1])
+            } else {
+                console.log("级增模型错误");
+            }
+        }
+        //污染级减模型
+        else {
+            console.log("反类型");
+            Xs.push(0), Ys.push(n);//DO,增加6级,上限0 ml/L
             for (var i = 0; i < n - 1; i++) {
-                if (X > Xs[i] && X <= Xs[i + 1]) {
+                if (X <= Xs[i] && X >= Xs[i + 1]) {
                     return Ys[i] + (Ys[i + 1] - Ys[i]) / (Xs[i + 1] - Xs[i]) * (X - Xs[i])
                 }
             }
@@ -146,11 +169,11 @@
     }
 
     function tableStringToArr(text) {
-        text = text.trim();//去除首尾空白
-        var yyy = text.split(/[\n]/); //按行分割
+        text = text.trim();
+        var yyy = text.split(/[\n]/);
         var shuju = [];
         for (var i = 0; i < yyy.length; i++) {
-            shuju[i] = yyy[i].trim().split(/,|，|\s+/);//去除首尾空白后，行内逗号、空格分割
+            shuju[i] = yyy[i].trim().split(/,|，|\s+/);
         };
         var shuju2 = []; var shuliang = 0;
         for (var i = 1; i < shuju.length; i++) {
@@ -165,12 +188,12 @@
         return { tableArr: shuju, objArr: shuju2, lieName: lieName };
     }
     function tableStringToArr2(text) {
-        text = text.trim();//去除首尾空白
-        var yyy = text.split(/[\n]/); //按行分割
+        text = text.trim();
+        var yyy = text.split(/[\n]/);
         var shuju = [];
 
         for (var i = 0; i < yyy.length; i++) {
-            shuju[i] = yyy[i].trim().split(/,|，|\s+/);//去除首尾空白后，行内逗号、空格分割
+            shuju[i] = yyy[i].trim().split(/,|，|\s+/);
         };
         var objArr = []; var shuliang = 0;
         for (var i = 2; i < shuju.length; i++) {
