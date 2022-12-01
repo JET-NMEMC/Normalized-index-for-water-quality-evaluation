@@ -25,6 +25,10 @@
         <input type="button" onclick="CAL()" value="运行" class="navbar-button" />
     </P>
     <div id="chart" style="width: 800px; height: 500px;"></div>
+    <div>
+        <!-- <textarea name="" id="innput" cols="30" rows="10"></textarea> -->
+        <textarea name="" id="output" cols="150" rows="10"></textarea>
+    </div>
 </body>
 <script>
     // Load the Visualization API and the corechart package.
@@ -84,6 +88,15 @@
         console.log('未找到标准的项目', itmswrong);
         console.log("输入", iptArr);
         console.log("输出", Result);
+        // console.log(JSON.stringify(Result))
+
+        $('#output').text(Object.keys(Result[0]));
+
+        Result.forEach(function (value, index) {
+            var arr = Object.values(value) //obj就被转换成数组了
+            $('#output').text($('#output').text() + arr + "\n");
+        });
+
 
         // drawChart()
         var chartdata = [["Element", "Index", { role: "style" }]];
