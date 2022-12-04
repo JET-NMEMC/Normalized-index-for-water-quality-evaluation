@@ -13,31 +13,31 @@
 <body>
     <p>
         <input type="file" id="selectdatafile1" accept=".csv" style="display: none" />
-        <input type="button" onclick="document.getElementById('selectdatafile1').click()" value="选择标准数据"
-            class="navbar-button" />
+        <input type="button" onclick="document.getElementById('selectdatafile1').click()" value="选择标准数据" />
     </p>
     <p>
         <input type="file" id="selectdatafile2" accept=".csv" style="display: none" />
-        <input type="button" onclick="document.getElementById('selectdatafile2').click()" value="选择监测数据"
-            class="navbar-button" />
+        <input type="button" onclick="document.getElementById('selectdatafile2').click()" value="选择监测数据" />
     </p>
     <P>
         <input type="button" onclick="CAL()" value="运行" class="navbar-button" />
     </P>
-    <div id="chart" style="width: 800px; height: 500px;"></div>
+    <p id="next" style="visibility: hidden">
+        <button width=60px id="lc" onclick='$("#select").val(Number($("#select").val())-1); drawChart(Result, $("#select").val())'><</button>            
+        <select id="select"></select>
+        <button width=60px id="rc" onclick='$("#select").val(Number($("#select").val())+1); drawChart(Result, $("#select").val())'>></button>
+    </p>
+    <div id="chart"></div>
     <div>
-        <!-- <textarea name="" id="innput" cols="30" rows="10"></textarea> -->
-        <textarea name="" id="output" cols="150" rows="10"></textarea>
+        <textarea name="" id="output" cols="180" rows="20"></textarea>
     </div>
 </body>
 <script>
     // Load the Visualization API and the corechart package.
     google.charts.load('current', { 'packages': ['corechart'] });
 
-    var Xs = [0.1, 0.2, 0.3, 0.4];
-    var Ys = [4, 3, 2, 1];
-
-    var BZ, SJ;
+    var BZ, SJ, Result;
+    var itmsright, itmswrong;
 
     $('#selectdatafile1').on('change', function () {
         readFileAsText(this.files[0], function (e) {
@@ -59,9 +59,10 @@
         var iptArr = SJ.objArr;
         var BZName = BZ.lieName;
 
-        var Result = JSON.parse(JSON.stringify(iptArr));
-        var itmsright = [];
-        var itmswrong = [];
+        itmsright = [];
+        itmswrong = [];
+        Result = JSON.parse(JSON.stringify(iptArr));
+
         for (var i = 0; i < SJName.length; i++) {
             if (SJType[i] == 'data') {
                 var itm = SJName[i];
@@ -75,12 +76,15 @@
 
                     Result.forEach(element => {
                         var newgrade = Lineinterp(BZvalue, BZgrade, element[itm], itm);
-                        // element[itm] = newgrade > 6 ? 6 : Math.round(newgrade * 100) / 100;//指数约束，不大于6
-                        element[itm] = newgrade > 10 ? 10 : Math.round(newgrade * 100) / 100;//指数约束，不大于6
-                        console.log(element[itm]);
+                        element[itm] = Math.round(newgrade * 100) / 100;
+                        // console.log(element[itm]);
                     });
                 } else {
                     itmswrong.push(itm);
+                    alert("标准中未找到名为：“ " + itm + " ” 的项目，请核实项目名称是否与标准名称一致");
+                    Result.forEach(element => {
+                        element[itm] = "NAN"
+                    });
                 }
             }
         }
@@ -88,32 +92,51 @@
         console.log('未找到标准的项目', itmswrong);
         console.log("输入", iptArr);
         console.log("输出", Result);
-        // console.log(JSON.stringify(Result))
 
-        $('#output').text(Object.keys(Result[0]));
+        $('#output').text(ObjArr2TableString(Result))
 
-        Result.forEach(function (value, index) {
-            var arr = Object.values(value) //obj就被转换成数组了
-            $('#output').text($('#output').text() + arr + "\n");
+        draw_menu(Result)
+        drawChart(Result, 0)
+
+    }
+
+    //------------切换行
+    $("#select").change(function () {
+        drawChart(Result, this.value)
+    })
+
+
+    function ObjArr2TableString(ObjArr) {
+        let outs = [Object.keys(ObjArr[0]).join("\t")];
+        ObjArr.forEach(function (value, index) {
+            let arr = Object.values(value)
+            outs.push(arr.join("\t"))
         });
+        return (outs.join("\n"))
+    }
 
+    //-----------------------------------------------------------生成要素选项下拉菜单-----------------------
+    function draw_menu(ObjArr) {
+        var obj = '';
+        $("#select").empty();//清空内容
+        for (var i = 0; i < ObjArr.length; i++) {//此处3是指排除site、lng、lat3个
+            obj += "<option id= '" + i + "' value='" + i + "'>" + i + "</option>";
+        }
+        $("#select").append(obj);
+        // $("#select option:selected").val(3)
+        // console.log($("#select option:selected").val())
+        document.getElementById('next').style.visibility = 'visible';// 显示元素
+    };
 
-        // drawChart()
+    function drawChart(ObjArr2, row) {
         var chartdata = [["Element", "Index", { role: "style" }]];
         for (var key in Result[0]) {
             if (itmsright.includes(key)) {
-                var V_index = Result[0][key];
-                // var V_true = iptArr[0][key];
+                var V_index = Result[row][key];
                 chartdata.push([key, V_index, getcolor(V_index)
                 ])
             }
         };
-        // console.log(chartdata)
-        drawChart(chartdata)
-
-    }
-
-    function drawChart(chartdata) {
         var data = google.visualization.arrayToDataTable(chartdata);
 
         var options = {
@@ -134,7 +157,6 @@
                     x <= 4 ? '#FF8C00' :
                         x <= 5 ? '#EA0000' :
                             '#921AFF'
-
     }
 
     function readFileAsText(file, onLoadCallback) {
@@ -171,8 +193,8 @@
             else {
                 return ('pH wrong')
             }
-
         }
+
         //污染级增模型
         else if (Xs[n - 1] > Xs[0]) {
             if (X >= Xs[0] && X <= Xs[n - 1]) {
@@ -191,6 +213,7 @@
                 console.log("级增模型错误");
             }
         }
+
         //污染级减模型
         else {
             console.log("反类型");
@@ -201,7 +224,6 @@
                 }
             }
         }
-
     }
 
     function tableStringToArr(text) {
